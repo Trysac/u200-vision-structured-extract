@@ -1,29 +1,29 @@
 # Architecture
 
-## Purpose
+## Overview
 
-`trysac-vision-structured-extract` is a small, dependency-free Python library: Extract schema-validated JSON from images through an injected vision model port: header-only image checks, a JSON Schema subset and a bounded re-ask loop
+`trysac-vision-structured-extract` provides a deterministic pipeline for extracting structured JSON data from images via multimodal LLMs.
 
-## Shape
-
-```text
-caller code --> vision_structured_extract (public API in __init__.py)
-                    |
-                    +-- pure functions, no I/O, no global state
+```
+[Raw Images] ──> prepare_image() ──> [ImageInput (header verified, base64)]
+                                              │
+                                              ▼
+[JSON Schema] ──> validate() ───────> extract() <──> [VisionPort Protocol]
+                                              │
+                                              ▼
+                                   [Validated Extraction]
 ```
 
-- **Public API**: the names listed in `__all__` of `src/vision_structured_extract/__init__.py`. Anything else is
-  internal and may change without a major version.
-- **Errors**: invalid input raises built-in exceptions (`ValueError`, `TypeError`) with a clear
-  message; the library never prints or exits.
-- **Side effects**: none. If a feature needs I/O, isolate it in its own module behind a small
-  interface and record the choice in an ADR.
+## Core Components
 
-## Quality contract
+1. **Image Inspector (`prepare_image`)**:
+   Inspects image headers directly (PNG `IHDR`, JPEG `SOF0..SOF15` markers, WebP `VP8`, `VP8L`, `VP8X`, GIF `GIF87a`/`GIF89a`). Verifies payload size and dimensions without raster decompression.
 
-`scripts/check.py` is the single definition of the gates; `fabrica.json` tells the factory and CI
-how to run it. See [TESTING.md](TESTING.md).
+2. **Schema Engine (`validate`)**:
+   Validates parsed JSON against a strict schema subset with max depth 16. Rejects unsupported keywords to prevent unvalidated model output. Uses `Decimal` for all fractional numbers to prevent precision loss.
 
-## Decisions
+3. **Extraction & Re-ask Loop (`extract`)**:
+   Interacts with an injected `VisionPort`. When a model reply fails JSON parsing or schema validation, it formats up to 20 issues into a clean re-ask prompt and repeats up to `max_attempts`.
 
-Architecture decisions are recorded in [decisions/](decisions/) as numbered ADRs.
+4. **Test Doubles (`RecordedVision`, `FakeVision`)**:
+   Enables fully deterministic, offline testing of multimodal extraction loops without requiring live provider API keys.

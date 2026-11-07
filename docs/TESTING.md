@@ -1,20 +1,8 @@
-# Testing
+# Testing Strategy
 
-## Running
-
-```sh
-uv run pytest --cov=vision_structured_extract   # tests with coverage report
-uv run python scripts/check.py      # every gate, as CI and the factory run it
-```
-
-## Policy
-
-- Branch coverage of `src/vision_structured_extract` must stay at or above 80 %; the gate fails below it.
-- Tests exercise the public API (`import vision_structured_extract`) and assert every observable effect:
-  return values, raised exceptions and their messages.
-- Each bug fix starts with a failing test that reproduces it.
-- Tests are deterministic: no network, no wall clock, no dependence on test order.
-
-## Layout
-
-`tests/test_<module>.py` mirrors each public module. Shared fixtures go in `tests/conftest.py`.
+- **Zero Network/LLM dependency**: Tests exclusively use `RecordedVision` or `FakeVision` doubles.
+- **Binary Fixtures**: Image headers (PNG, JPEG, WebP, GIF) are generated in-code using `struct` and byte literals, ensuring no external test files are required.
+- **Coverage**:
+  - `prepare_image`: Edge cases for unsupported formats (e.g., BMP), oversized payloads, invalid dimensions.
+  - `validate`: Strict enforcement of schema subset, including recursion limits.
+  - `extract`: Retry logic, error reporting (including truncation of >20 issues), and fallback between fenced blocks and balanced object detection.
