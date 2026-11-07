@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Implement vision-structured-extract with header-only inspection, schema validation, and bounded re-ask loop.
 - Initial project structure from the factory utility template.

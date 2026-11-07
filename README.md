@@ -1,48 +1,45 @@
-# vision-structured-extract
+# trysac-vision-structured-extract
 
-[![PyPI version](https://img.shields.io/pypi/v/trysac-vision-structured-extract)](https://pypi.org/project/trysac-vision-structured-extract/)
-[![License: MIT](https://img.shields.io/pypi/l/trysac-vision-structured-extract)](LICENSE)
-[![CI](https://github.com/Trysac/u200-vision-structured-extract/actions/workflows/ci.yml/badge.svg)](https://github.com/Trysac/u200-vision-structured-extract/actions/workflows/ci.yml)
-
-Extract schema-validated JSON from images through an injected vision model port: header-only image checks, a JSON Schema subset and a bounded re-ask loop
+Extract schema-validated JSON from images through an injected vision model port: header-only image checks, a JSON Schema subset and a bounded re-ask loop.
 
 ## Problem
 
-Describe in two or three sentences the concrete problem this utility solves, who hits it, and what
-they do today without it. Replace this paragraph when the first real feature lands.
+Teams send photos of forms, labels and screenshots to vision models and get back prose, half-valid JSON or invented fields, then write unbounded retry loops and leak image data into logs. Each project re-implements image checks, prompt layout, JSON extraction and validation. This library does that once: it checks images from their headers, sends a fixed prompt through a provider-neutral port and returns a value validated against a declared schema.
 
-## Install
+## Installation
 
-```sh
+```bash
 pip install trysac-vision-structured-extract
-# or
-uv add trysac-vision-structured-extract
 ```
-
-Requires Python 3.10 or newer. No runtime dependencies.
 
 ## Usage
 
 ```python
-import vision_structured_extract
+from decimal import Decimal
+from vision_structured_extract import RecordedVision, extract
 
-# normalize() trims surrounding whitespace and lower-cases the text.
-print(vision_structured_extract.normalize("  Hello World "))  # -> "hello world"
-
-# Blank input is rejected explicitly instead of returning an empty string.
-try:
-    vision_structured_extract.normalize("   ")
-except ValueError as exc:
-    print(f"rejected: {exc}")
+schema = {
+    "type": "object",
+    "properties": {"total": {"type": "number"}},
+    "required": ["total"],
+    "additionalProperties": False,
+}
+vision = RecordedVision(['{"total": 10.5}'])
+extraction = extract(vision, [], schema)
+assert extraction.value == {"total": Decimal("10.5")}
 ```
 
-## Documentation
+## Public API Summary
 
-- [Architecture](docs/ARCHITECTURE.md) and [decisions](docs/decisions/)
-- [Testing](docs/TESTING.md) and [security](docs/SECURITY.md)
-- [Project record](docs/PROJECT.md) and [stack](docs/STACK.md)
-- [Changelog](CHANGELOG.md) and [contributing guide](CONTRIBUTING.md)
+- `prepare_image(data: bytes, *, max_bytes: int = 20_000_000, max_side: int = 8_000) -> ImageInput`: Inspects PNG/JPEG/WebP/GIF headers without decoding.
+- `validate(value: object, schema: Mapping) -> list[Issue]`: Validates against a supported subset (type, enum, bounds, required, additionalProperties).
+- `extract(...) -> Extraction`: Coordinates extraction via `VisionPort`, with a bounded retry loop (1-10 attempts).
+- `VisionExtractError`: Base class for errors (`unsupported_image`, `image_too_large`, `too_many_images`, `schema_unsupported`, `no_json`, `invalid_json`, `schema_validation`, `reply_too_large`, `attempts_exhausted`).
+- `AttemptsExhaustedError`: Raised when retry loops expire, containing the last observed `Issue`s.
+- `RecordedVision` / `FakeVision`: Test doubles for recording and simulating model outputs.
 
-## License
+## Why not <best-known alternative>?
 
-[MIT](LICENSE) (c) 2026 Miguel Gomez
+Unlike provider-specific structured-output modes, this library is provider-neutral, allows for deterministic offline testing via dependency injection, and performs strict, local validation before accepting any model output.
+
+[Security Details](docs/SECURITY.md)
