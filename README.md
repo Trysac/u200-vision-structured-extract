@@ -8,8 +8,10 @@ Teams send photos of forms, labels and screenshots to vision models and get back
 
 ## Installation
 
+Not published to PyPI yet. Install it from GitHub:
+
 ```bash
-pip install trysac-vision-structured-extract
+pip install "git+https://github.com/Trysac/u200-vision-structured-extract"
 ```
 
 ## Usage
